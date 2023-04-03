@@ -200,36 +200,42 @@ class Camera1 extends CameraViewImpl implements MediaRecorder.OnInfoListener,
     }
 
     private void updateSurface(){
-        if (mCamera != null) {
+        // NOTE: This code has been patched to avoid a race condition where isPictureCaptureInProgress
+        // and mIsRecording were only checked once before posting the runnable to the background
+        // thread.
+        //
+        // It's been simplified to always post the runnable and checking on the background thread
+        // instead. This avoids a race condition where the preview would be stopped while a photo
+        // was being taken, resulting in the photo callback never completing.
+        //
+        // See https://www.pivotaltracker.com/story/show/184836195 for details.
+        mBgHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                synchronized(Camera1.this){
+                    // check for camera null again since it might have changed
+                    if(mCamera != null){
+                        // do not update surface if we are currently capturing
+                        // since it will break capture events/video due to the
+                        // pause preview calls
+                        // capture callbacks will handle it if needed afterwards.
+                        if(isPictureCaptureInProgress.get() || mIsRecording.get()){
+                            mustUpdateSurface = true;
+                            return;
+                        }
 
-            // do not update surface if we are currently capturing
-            // since it will break capture events/video due to the
-            // pause preview calls
-            // capture callbacks will handle it if needed afterwards.
-            if(!isPictureCaptureInProgress.get() && !mIsRecording.get()){
-                mBgHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        synchronized(Camera1.this){
-                            // check for camera null again since it might have changed
-                            if(mCamera != null){
-                                mustUpdateSurface = false;
-                                setUpPreview();
-                                adjustCameraParameters();
+                        mustUpdateSurface = false;
+                        setUpPreview();
+                        adjustCameraParameters();
 
-                                // only start preview if we are showing it
-                                if(mShowingPreview){
-                                    startCameraPreview();
-                                }
-                            }
+                        // only start preview if we are showing it
+                        if(mShowingPreview){
+                            startCameraPreview();
                         }
                     }
-                });
+                }
             }
-            else{
-                mustUpdateSurface = true;
-            }
-        }
+        });
     }
 
     @Override
