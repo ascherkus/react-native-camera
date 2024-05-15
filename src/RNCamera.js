@@ -5,7 +5,6 @@ import {
   findNodeHandle,
   Platform,
   NativeModules,
-  ViewPropTypes,
   requireNativeComponent,
   View,
   ActivityIndicator,
@@ -13,6 +12,9 @@ import {
   StyleSheet,
   PermissionsAndroid,
 } from 'react-native';
+
+// https://github.com/facebook/react-native/issues/33734#issuecomment-1214310383
+import { ViewPropTypes } from 'deprecated-react-native-prop-types';
 
 import type { FaceFeature } from './FaceDetector';
 
